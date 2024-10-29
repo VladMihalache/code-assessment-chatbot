@@ -10,6 +10,11 @@ import { useEffect, useRef, useState } from 'react';
 import isExchangeArray from '@/utils/typeGuard';
 import { MessageType, Stock } from '@/types';
 
+enum ChatState {
+  HomeMenu = 'homeMenu',
+  Reset = 'reset',
+}
+
 export default function Default() {
   // initial home menu messages (to which user can get back by pressing 'Go back' / 'Home' buttons)
   const homeMenuMessages: MessageType[] = [
@@ -27,219 +32,137 @@ export default function Default() {
   ];
   const [messages, setMessages] = useState<MessageType[]>(homeMenuMessages);
   const [inputValue, setInputValue] = useState('');
-  // current exchange
-  const [exchange, setExchange] = useState('');
-  // chat phase state
-  const [chatState, setChatState] = useState('homeMenu');
+  const [exchange, setExchange] = useState(''); // current exchange
+  const [chatState, setChatState] = useState('homeMenu'); // chat phase state
 
   // handler for input value
   const handleInputValue = (e: any) => {
     setInputValue(e.target.value);
   };
 
-  // handlers for form submission
-  const handleSubmit = (e: any) => {
+  // handler for form
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // validation for PHASE 1 : return the stocks traded in the chosen exchange
-    if (chatState === 'homeMenu') {
-      let validatedExchange = validateExchange(data, inputValue);
-      let stockOptions: string[] | undefined;
-
-      if (
-        typeof validatedExchange === 'object' &&
-        typeof validatedExchange.topStocks === 'object'
-      ) {
-        stockOptions = validatedExchange.topStocks.map((stock: Stock) => {
-          return stock.stockName;
-        });
-
-        // update chat history with user's message and the new stock options
-        setMessages([
-          ...messages,
-          { author: 'user', text: inputValue },
-          {
-            author: 'bot',
-            text: 'Please select a stock.',
-            options: stockOptions || undefined,
-          },
-        ]);
-        // save exchange for 'Go Back' option
-        setExchange(validatedExchange.stockExchange);
-        // go to PHASE 2
-        setChatState(inputValue);
-      } else if (typeof validatedExchange === 'string') {
-        // if message is not valid, make user retry
-        setMessages([
-          ...messages,
-          { author: 'user', text: inputValue },
-          {
-            author: 'bot',
-            text: validatedExchange,
-            options: stockOptions || undefined,
-          },
-        ]);
-      }
-    }
-
-    // validation for PHASE 2 : return the information about the cosen stock and 'Go back' / 'Main menu' panel
-    if (chatState !== 'homeMenu' && chatState !== 'reset') {
-      let validatedStock = validateStock(data, chatState, inputValue);
-      let stockOptions: string[] | undefined;
-
-      if (typeof validatedStock === 'object') {
-        const { stockName, price } = validatedStock;
-
-        // update chat history with user's message and the new stock options
-        setMessages([
-          ...messages,
-          { author: 'user', text: inputValue },
-          {
-            author: 'bot',
-            text: `Stock price of ${stockName} is ${price}. Please select an option.`,
-            options: ['Main menu', 'Go Back'],
-          },
-        ]);
-        // go to PHASE 3
-        setChatState('reset');
-      } else if (typeof validatedStock === 'string') {
-        // if message is not valid, make user retry
-        setMessages([
-          ...messages,
-          { author: 'user', text: inputValue },
-          {
-            author: 'bot',
-            text: validatedStock,
-          },
-        ]);
-      }
-    }
-
-    // reset input after each submission
+    processChatInput(inputValue);
     setInputValue('');
   };
 
-  // handler for choosing option directly from panel
+  // handle from stock/exchange button click
   const handleClick = (value: string) => {
-    // validation for PHASE 1 : return the stocks traded in the chosen exchange
-    if (chatState === 'homeMenu') {
-      let validatedExchange = validateExchange(data, value);
-      let stockOptions: string[] | undefined;
+    processChatInput(value);
+  };
 
+  // main chat phasing process
+  const processChatInput = (value: string) => {
+    if (chatState === ChatState.HomeMenu) {
+      handleExchangeSelection(value);
+    } else if (
+      chatState !== ChatState.HomeMenu &&
+      chatState !== ChatState.Reset
+    ) {
+      handleStockSelection(value);
+    } else if (chatState === ChatState.Reset) {
+      handleResetOptions(value);
+    }
+  };
+
+  // validation for PHASE 1 : return the stocks traded in the chosen exchange
+  const handleExchangeSelection = (value: string) => {
+    const validatedExchange = validateExchange(data, value);
+    if (typeof validatedExchange === 'object' && validatedExchange.topStocks) {
+      const stockOptions = validatedExchange.topStocks.map(
+        (stock: Stock) => stock.stockName,
+      );
+
+      setMessages([
+        ...messages,
+        { author: 'user', text: value },
+        {
+          author: 'bot',
+          text: 'Please select a stock.',
+          options: stockOptions,
+        },
+      ]);
+
+      setExchange(validatedExchange.stockExchange);
+      setChatState(value); // move to stock choosing state
+    } else if (typeof validatedExchange === 'string') {
+      setMessages([
+        ...messages,
+        { author: 'user', text: value },
+        { author: 'bot', text: validatedExchange },
+      ]);
+    }
+  };
+
+  // handler for PHASE 2 : return the information about the chosen stock and 'Go back' / 'Main menu' panel
+  const handleStockSelection = (value: string) => {
+    const validatedStock = validateStock(data, chatState, value);
+    let validatedExchange = validateExchange(data, value);
+    if (typeof validatedExchange === 'object') {
+      // if the user tries pressing on an exchange again, we block it and give further instructions
+      setMessages([
+        ...messages,
+        { author: 'user', text: value },
+        {
+          author: 'bot',
+          text: `It seems you submmited a stock exchange again. If you want to go back to the main menu, click the button in the right side of the navbar.`,
+        },
+      ]);
+    } else if (typeof validatedStock === 'object') {
+      const { stockName, price } = validatedStock;
+
+      setMessages([
+        ...messages,
+        { author: 'user', text: value },
+        {
+          author: 'bot',
+          text: `Stock price of ${stockName} is ${price}. Please select an option.`,
+          options: ['Main menu', 'Go Back'],
+        },
+      ]);
+
+      setChatState(ChatState.Reset); // move to reset state
+    } else if (typeof validatedStock === 'string') {
+      setMessages([
+        ...messages,
+        { author: 'user', text: value },
+        { author: 'bot', text: validatedStock },
+      ]);
+    }
+  };
+
+  // handler for RESET PHASE : user is sent back to either main menu or last selected exchange
+  const handleResetOptions = (input: string) => {
+    if (input === 'Main menu') {
+      setMessages([...homeMenuMessages]);
+      setExchange('');
+      setChatState(ChatState.HomeMenu); // reset to home menu
+    } else if (input === 'Go Back') {
+      const validatedExchange = validateExchange(data, exchange);
+
+      // type guard to make sure validatedExchange is of the expected type
       if (
         typeof validatedExchange === 'object' &&
-        typeof validatedExchange.topStocks === 'object'
+        'topStocks' in validatedExchange
       ) {
-        stockOptions = validatedExchange.topStocks.map((stock: Stock) => {
-          return stock.stockName;
-        });
+        const stockOptions = validatedExchange.topStocks.map(
+          (stock: Stock) => stock.stockName,
+        );
 
-        // update chat history with user's message and the new stock options
         setMessages([
-          ...messages,
-          { author: 'user', text: value },
+          ...homeMenuMessages,
+          { author: 'user', text: exchange },
           {
             author: 'bot',
             text: 'Please select a stock.',
-            options: stockOptions || undefined,
+            options: stockOptions,
           },
         ]);
-        // save exchange for 'Go Back' option
-        setExchange(validatedExchange.stockExchange);
-        // go to PHASE 2
-        setChatState(value);
-      } else if (typeof validatedExchange === 'string') {
-        // if message is not valid, make user retry
-        setMessages([
-          ...messages,
-          { author: 'user', text: value },
-          {
-            author: 'bot',
-            text: validatedExchange,
-            options: stockOptions || undefined,
-          },
-        ]);
+
+        setChatState(exchange); // go back to stock choosing state (from last selected exchange)
       }
     }
-
-    // validation for PHASE 2 : return the information about the cosen stock and 'Go back' / 'Main menu' panel
-    else if (chatState !== 'homeMenu' && chatState !== 'reset') {
-      let validatedExchange = validateExchange(data, value);
-      let validatedStock = validateStock(data, chatState, value);
-      if (typeof validatedExchange === 'object') {
-        // if the user tries pressing on an exchange again, we block it and give further instructions
-        setMessages([
-          ...messages,
-          { author: 'user', text: value },
-          {
-            author: 'bot',
-            text: `It seems you submmited a stock exchange again. If you want to go back to the main menu, click the button in the right side of the navbar.`,
-          },
-        ]);
-      } else if (typeof validatedStock === 'object') {
-        const { stockName, price } = validatedStock;
-
-        // update chat history with user's message and the new stock options
-        setMessages([
-          ...messages,
-          { author: 'user', text: value },
-          {
-            author: 'bot',
-            text: `Stock price of ${stockName} is ${price}. Please select an option.`,
-            options: ['Main menu', 'Go Back'],
-          },
-        ]);
-        // go to PHASE 3
-        setChatState('reset');
-      } else if (typeof validatedStock === 'string') {
-        // if message is not valid, make user retry
-        setMessages([
-          ...messages,
-          { author: 'user', text: value },
-          {
-            author: 'bot',
-            text: validatedStock,
-          },
-        ]);
-      }
-    }
-
-    // validation for PHASE 3 : return the information about the cosen stock and 'Go back' / 'Main menu' panel
-    else if (chatState === 'reset') {
-      if (value === 'Main menu') {
-        // reset messages, exchange and state to the home menu
-        setChatState('homeMenu');
-        setExchange('');
-        setMessages([...homeMenuMessages]);
-      } else if (value === 'Go Back') {
-        let validatedExchange = validateExchange(data, exchange);
-        let stockOptions: string[] | undefined;
-        if (
-          typeof validatedExchange === 'object' &&
-          typeof validatedExchange.topStocks === 'object'
-        ) {
-          stockOptions = validatedExchange.topStocks.map((stock: Stock) => {
-            return stock.stockName;
-          });
-
-          // update chat history with user's message and the new stock options
-          setMessages([
-            ...homeMenuMessages,
-            { author: 'user', text: exchange },
-            {
-              author: 'bot',
-              text: 'Please select a stock.',
-              options: stockOptions || undefined,
-            },
-          ]);
-          // go to PHASE 2
-        }
-        setChatState(exchange);
-      }
-    }
-
-    // reset input after each submission
-    setInputValue('');
   };
 
   // reset states when using "Go to home menu" button
@@ -250,6 +173,7 @@ export default function Default() {
     }
   }, [chatState]);
 
+  // scroll to bottom when a new message is created
   const chatboxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     chatboxRef.current?.scrollTo({

@@ -2,7 +2,7 @@
 
 ### Tech Stack
 
-My application uses ReactJS. Next.js and TailwincCSS stack.
+I used the ReactJS. Next.js and TailwincCSS stack for my app.
 
 ### Assumptions
 
