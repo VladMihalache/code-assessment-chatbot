@@ -5,13 +5,25 @@ import Navbar from '@/components/navbar';
 import Button from '@/components/button';
 import Message from '@/components/chat-components/message';
 import data from '@/public/stock-data.json';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 // type for message object
 type Message = {
   author: 'bot' | 'user';
   text: string;
-  options?: string[];
+  options?: string[] | null;
+};
+
+type Stock = {
+  code: string;
+  stockName: string;
+  price: number;
+};
+
+type Exchange = {
+  code: string;
+  stockExchange: string;
+  topStocks: Stock[];
 };
 
 export default function Home() {
@@ -29,11 +41,61 @@ export default function Home() {
   const [inputValue, setInputValue] = useState('');
   // chat phase state
   const [chatState, setChatState] = useState('homeMenu');
+  console.log(chatState);
+
+  // validating function for Home menu -> stock menu phase
+  const validateExchange = (value: string) => {
+    const existingExchange = data.find((item) => item.stockExchange === value);
+    return (
+      existingExchange ||
+      'The exchange you chose does not exist. Please choose another one.'
+    );
+  };
 
   // handlers for form and input
   const handleSubmit = (e: any) => {
     e.preventDefault();
-    setMessages([...messages, { author: 'user', text: inputValue }]);
+
+    // validation for PHASE 1 : return the stocks traded in the chosen exchange
+    if (chatState === 'homeMenu') {
+      let validatedExchange = validateExchange(inputValue);
+      let stockOptions: string[] | undefined;
+
+      if (
+        typeof validatedExchange === 'object' &&
+        typeof validatedExchange.topStocks === 'object'
+      ) {
+        stockOptions = validatedExchange.topStocks.map((stock: Stock) => {
+          return stock.stockName;
+        });
+
+        // update chat history with user's message and the new stock options
+        setMessages([
+          ...messages,
+          { author: 'user', text: inputValue },
+          {
+            author: 'bot',
+            text: 'Please select a stock.',
+            options: stockOptions || undefined,
+          },
+        ]);
+        // go to PHASE 2
+        setChatState(inputValue);
+      } else if (typeof validatedExchange === 'string') {
+        // if message is not valid, make user retry
+        setMessages([
+          ...messages,
+          { author: 'user', text: inputValue },
+          {
+            author: 'bot',
+            text: validatedExchange,
+            options: stockOptions || undefined,
+          },
+        ]);
+      }
+    }
+
+    // reset input after each submission
     setInputValue('');
   };
 
@@ -49,11 +111,11 @@ export default function Home() {
         <div className="chatbox flex flex-col w-full h-[70vh] max-h-[70vh] gap-8 p-4 ps-0 pe-2 overflow-y-scroll">
           {messages.map((message, key) => {
             return (
-              <Message key={key} variant={message?.author}>
+              <Message key={key} variant={message.author}>
                 <p className="font-medium">{message.text}</p>
                 {message.options && (
                   <div className="flex flex-col gap-2 mt-3">
-                    {message?.options?.map((option, key_sec) => {
+                    {message.options.map((option, key_sec) => {
                       return (
                         <Button
                           key={key_sec}
