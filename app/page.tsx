@@ -164,9 +164,19 @@ export default function Default() {
 
     // validation for PHASE 2 : return the information about the cosen stock and 'Go back' / 'Main menu' panel
     else if (chatState !== 'homeMenu' && chatState !== 'reset') {
+      let validatedExchange = validateExchange(data, value);
       let validatedStock = validateStock(data, chatState, value);
-
-      if (typeof validatedStock === 'object') {
+      if (typeof validatedExchange === 'object') {
+        // if the user tries pressing on an exchange again, we block it and give further instructions
+        setMessages([
+          ...messages,
+          { author: 'user', text: value },
+          {
+            author: 'bot',
+            text: `It seems you submmited a stock exchange again. If you want to go back to the main menu, click the button in the right side of the navbar.`,
+          },
+        ]);
+      } else if (typeof validatedStock === 'object') {
         const { stockName, price } = validatedStock;
 
         // update chat history with user's message and the new stock options
@@ -232,6 +242,7 @@ export default function Default() {
     setInputValue('');
   };
 
+  // reset states when using "Go to home menu" button
   useEffect(() => {
     if (chatState === 'homeMenu') {
       setMessages(homeMenuMessages);
