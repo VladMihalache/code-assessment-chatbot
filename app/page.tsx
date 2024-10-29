@@ -6,7 +6,7 @@ import Button from '@/components/button';
 import Message from '@/components/chat-components/message';
 import data from '@/public/stock-data.json';
 import { validateExchange, validateStock } from '@/utils/validation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import isExchangeArray from '@/utils/typeGuard';
 import { MessageType, Stock } from '@/types';
 
@@ -250,12 +250,23 @@ export default function Default() {
     }
   }, [chatState]);
 
+  const chatboxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    chatboxRef.current?.scrollTo({
+      top: chatboxRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [messages]);
+
   return (
     <div className="grid grid-rows-[20px_1fr_20px] justify-items-center min-h-screen">
       <main className="flex flex-col w-full max-w-[90vw] lg:max-w-[55vw] mt-10 min-h-[70vh] items-center sm:items-start">
         <Navbar setChatState={setChatState} />
         {/* Conversation (message components) */}
-        <div className="chatbox flex flex-col w-full h-[70vh] max-h-[70vh] gap-8 p-4 ps-0 pe-2 overflow-y-scroll">
+        <div
+          ref={chatboxRef}
+          className="chatbox flex flex-col w-full h-[70vh] max-h-[70vh] gap-8 p-4 ps-0 pe-2 overflow-y-scroll"
+        >
           {messages.map((message, key) => {
             return (
               <Message key={key} variant={message.author}>

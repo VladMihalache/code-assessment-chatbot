@@ -1,6 +1,20 @@
 # Stock Exchange Chatbot
 
+### Tech Stack
+
 My application uses ReactJS. Next.js and TailwincCSS stack.
+
+### Assumptions
+
+I assume the user should be able to access more than 5 stocks if the database allows it.
+
+### Additional features
+
+Additional to the requirements, the app features the following:
+- Case handling in case user wants to pick another exchange
+- Reusable components like Button, Navbar or Message
+- Scalable code (the chat is based on a message array which can be used for possible future features like message editing or history)
+- Scroll to bottom functionality for the chatbox
 
 ## Setting up the App
 
