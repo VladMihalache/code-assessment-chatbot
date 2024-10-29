@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import NextLink from 'next/link';
 import { RiRobot2Line } from 'react-icons/ri';
 
