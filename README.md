@@ -1,4 +1,4 @@
-Stock Exchange Chatbot
+# Stock Exchange Chatbot
 
 My application uses ReactJS. Next.js and TailwincCSS stack.
 

@@ -5,49 +5,32 @@ import Navbar from '@/components/navbar';
 import Button from '@/components/button';
 import Message from '@/components/chat-components/message';
 import data from '@/public/stock-data.json';
+import { validateExchange, validateStock } from '@/utils/validation';
 import { useEffect, useState } from 'react';
-
+import isExchangeArray from '@/utils/typeGuard';
 import { MessageType, Stock } from '@/types';
 
-export default function Home() {
+export default function Default() {
   // initial home menu messages (to which user can get back by pressing 'Go back' / 'Home' buttons)
   const homeMenuMessages: MessageType[] = [
     { author: 'bot', text: "Hello! Welcome to LSEF. I'm here to help you." },
     {
       author: 'bot',
-      text: 'Please select a Stock Exchange.',
-      options: data.map((item) => item.stockExchange),
+      // type guard function to check for non-existent / wrong formatted data
+      text: isExchangeArray(data)
+        ? 'Please select a Stock Exchange.'
+        : 'Currently there is no information about any stock exchange.',
+      options: isExchangeArray(data)
+        ? data.map((item) => item.stockExchange)
+        : undefined,
     },
   ];
-
   const [messages, setMessages] = useState<MessageType[]>(homeMenuMessages);
-  const [exchange, setExchange] = useState('');
   const [inputValue, setInputValue] = useState('');
+  // current exchange
+  const [exchange, setExchange] = useState('');
   // chat phase state
   const [chatState, setChatState] = useState('homeMenu');
-
-  // validating function for Home menu -> stock menu phase
-  const validateExchange = (value: string) => {
-    const existingExchange = data.find((item) => item.stockExchange === value);
-    return (
-      existingExchange ||
-      'The exchange you chose does not exist. Please choose another one.'
-    );
-  };
-
-  // validating function for Home menu -> stock menu phase
-  const validateStock = (exchange: string, value: string) => {
-    const existingExchange = data.find(
-      (item) => item.stockExchange === exchange,
-    );
-    const existingStock = existingExchange?.topStocks.find(
-      (item) => item.stockName === value,
-    );
-    return (
-      existingStock ||
-      'The stock you chose does not exist in this exchange. Please choose another one.'
-    );
-  };
 
   // handler for input value
   const handleInputValue = (e: any) => {
@@ -60,7 +43,7 @@ export default function Home() {
 
     // validation for PHASE 1 : return the stocks traded in the chosen exchange
     if (chatState === 'homeMenu') {
-      let validatedExchange = validateExchange(inputValue);
+      let validatedExchange = validateExchange(data, inputValue);
       let stockOptions: string[] | undefined;
 
       if (
@@ -101,7 +84,7 @@ export default function Home() {
 
     // validation for PHASE 2 : return the information about the cosen stock and 'Go back' / 'Main menu' panel
     if (chatState !== 'homeMenu' && chatState !== 'reset') {
-      let validatedStock = validateStock(chatState, inputValue);
+      let validatedStock = validateStock(data, chatState, inputValue);
       let stockOptions: string[] | undefined;
 
       if (typeof validatedStock === 'object') {
@@ -140,7 +123,7 @@ export default function Home() {
   const handleClick = (value: string) => {
     // validation for PHASE 1 : return the stocks traded in the chosen exchange
     if (chatState === 'homeMenu') {
-      let validatedExchange = validateExchange(value);
+      let validatedExchange = validateExchange(data, value);
       let stockOptions: string[] | undefined;
 
       if (
@@ -181,7 +164,7 @@ export default function Home() {
 
     // validation for PHASE 2 : return the information about the cosen stock and 'Go back' / 'Main menu' panel
     else if (chatState !== 'homeMenu' && chatState !== 'reset') {
-      let validatedStock = validateStock(chatState, value);
+      let validatedStock = validateStock(data, chatState, value);
 
       if (typeof validatedStock === 'object') {
         const { stockName, price } = validatedStock;
@@ -219,7 +202,7 @@ export default function Home() {
         setExchange('');
         setMessages([...homeMenuMessages]);
       } else if (value === 'Go Back') {
-        let validatedExchange = validateExchange(exchange);
+        let validatedExchange = validateExchange(data, exchange);
         let stockOptions: string[] | undefined;
         if (
           typeof validatedExchange === 'object' &&
@@ -252,6 +235,7 @@ export default function Home() {
   useEffect(() => {
     if (chatState === 'homeMenu') {
       setMessages(homeMenuMessages);
+      setExchange('');
     }
   }, [chatState]);
 
